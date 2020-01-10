@@ -19,9 +19,9 @@ stop(Name) ->
 
 start_link() ->
     DBpath = "todo",
-    gen_server:start_link(lib_server_core, ?MODULE, [DBpath], []).
+    gen_server:start_link({local,lib_server}, ?MODULE, [DBpath], []).
 
-init([DBpath]) ->
+init(DBpath) ->
     {ok, #serverState{db_data = lib_server_db:loadDBFromFile(DBpath),activeHandlers = []}}.
 
 handle_call(stop, _From, State) ->
@@ -41,9 +41,9 @@ handle_call({dbQuery,Data},From,State) ->
 
 %db update reply
 handle_call({dbUpdate,Data},From,State) ->
-    DBupdateResult = lib_server_db:handleDBupdate(Data,State#serverState.db_data),
+    {DBupdateResult,updatedDB} = lib_server_db:handleDBupdate(Data,State#serverState.db_data),
     From!{dbReply,DBupdateResult},
-    {noreply,State};
+    {noreply,State#serverState{db_data = updatedDB}};
 
 %handler creation reply 
 handle_call({RequestType,Data},From,State) ->

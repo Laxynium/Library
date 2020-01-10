@@ -2,7 +2,6 @@
 
 -export([createHandler/3]).
 
-
 createHandler(RequestType,From,Data) ->
     case RequestType of 
         echoRequest -> spawn(fun() -> echoHandle(self(),From,Data) end);
