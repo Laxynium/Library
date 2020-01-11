@@ -56,13 +56,13 @@ borrow(StudentId, CanBorrow, Now,{Id,BookInfo, Checkouts}) ->
             end
     end.
 
--spec return(student_card_id(), fun(()->calendar:datetime()),book()) -> {ok, book()} | {punishment, float(), book()} | book_not_borrwed. % todo replace with decimal type from some library
+-spec return(student_card_id(), fun(()->calendar:datetime()),book()) -> {ok, book()} | {punishment, float(), book()} | book_not_borrowed. % todo replace with decimal type from some library
 return(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
     case CheckOuts of
         [] ->
-            book_not_borrwed;
+            book_not_borrowed;
         [{_,_,By,Returned,_}|_] when (By =/= StudentId) or Returned->
-            book_not_borrwed;
+            book_not_borrowed;
         [{Since,Till,By,_,_}|Older] ->
             {CurrentDate, _} = Now(),
             CurrentDateInDays = calendar:date_to_gregorian_days(CurrentDate),
@@ -76,25 +76,24 @@ return(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
             end
     end.
 
--spec extend(student_card_id(), fun(()->calendar:datetime()), book()) -> {ok, book()} | too_late | book_not_borrwed.
+-spec extend(student_card_id(), fun(()->calendar:datetime()), book()) -> {ok, book()} | too_late | book_not_borrowed.
 extend(StudentId, Now, {Id, BookInfo, CheckOuts}) -> 
     case CheckOuts of 
         [] -> 
-            book_not_borrwed;
+            book_not_borrowed;
         [{_,_,By,Returned,_} | _] when (By /= StudentId) or Returned ->
-            book_not_borrwed;
-        [{Since, Till, By, _, _} | Older] ->
-        Delay = 3,
+            book_not_borrowed;
+        [{_Since, Till, By, _, _} | Older] ->
         {CurrentDate, _} = Now(),
         CurrentDateInDays = calendar:date_to_gregorian_days(CurrentDate),
         TillInDays = calendar:date_to_gregorian_days(Till),
-        Difference = CurrentDateInDays - (TillInDays + Delay),
+        Difference = CurrentDateInDays - (TillInDays + ?Delay),
         if 
             Difference >= 1 ->
                 too_late;
             true ->
-                Till = calendar:gregorian_days_to_date(calendar:date_to_gregorian_days(Since) + ?CheckOutPeriotInDays),
-                {ok, {Id, BookInfo, [{CurrentDate, Till, By, false,{}} | Older]}}
+                NewTill = calendar:gregorian_days_to_date(calendar:date_to_gregorian_days(CurrentDate) + ?CheckOutPeriotInDays),
+                {ok, {Id, BookInfo, [{CurrentDate, NewTill, By, false,{}} | Older]}}
         end
     end.
 
