@@ -1,13 +1,12 @@
 -module(book).
 
 -export([create/1,borrow/4, return/3, extend/3]).
--export_type([book_id/0, student_card_id/0, book_info/0,check_out_info/0, book/0]).
+-export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
 -define(CheckOutPeriotInDays, 90).
 -define(PunishmentRate, 0.20).
 -define(Delay, 3).
 
 -type book_id() :: {binary()}.
--type student_card_id() :: {string()}.
 
 -record (book_info,{
     title::string(), 
@@ -19,7 +18,7 @@
 -record(check_out_info, {
     since :: calendar:date(), 
     till :: calendar:date(),
-    by :: student_card_id(),
+    by :: lib_user:user_card_id(),
     returned :: boolean(),
     returned_at :: calendar:date() | {}
 }).
@@ -36,7 +35,7 @@
 create(BookInfo) ->
     {{uuid:v4()}, BookInfo, []}.
 
--spec borrow(student_card_id(), fun((student_card_id())->boolean()), fun(()->calendar:datetime()), book()) -> {ok, book()} | cannot_borrow |already_borrowed.
+-spec borrow(lib_user:user_card_id(), fun((lib_user:user_card_id())->boolean()), fun(()->calendar:datetime()), book()) -> {ok, book()} | cannot_borrow |already_borrowed.
 borrow(StudentId, CanBorrow, Now,{Id,BookInfo, Checkouts}) ->
     case CanBorrow(StudentId) of 
         false -> 
@@ -56,7 +55,7 @@ borrow(StudentId, CanBorrow, Now,{Id,BookInfo, Checkouts}) ->
             end
     end.
 
--spec return(student_card_id(), fun(()->calendar:datetime()),book()) -> {ok, book()} | {punishment, float(), book()} | book_not_borrowed. % todo replace with decimal type from some library
+-spec return(lib_user:user_card_id(), fun(()->calendar:datetime()),book()) -> {ok, book()} | {punishment, float(), book()} | book_not_borrowed. % todo replace with decimal type from some library
 return(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
     case CheckOuts of
         [] ->
@@ -76,7 +75,7 @@ return(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
             end
     end.
 
--spec extend(student_card_id(), fun(()->calendar:datetime()), book()) -> {ok, book()} | too_late | book_not_borrowed.
+-spec extend(lib_user:user_card_id(), fun(()->calendar:datetime()), book()) -> {ok, book()} | too_late | book_not_borrowed.
 extend(StudentId, Now, {Id, BookInfo, CheckOuts}) -> 
     case CheckOuts of 
         [] -> 
@@ -96,6 +95,13 @@ extend(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
                 {ok, {Id, BookInfo, [{CurrentDate, NewTill, By, false,{}} | Older]}}
         end
     end.
+
+-spec whoBorrowed(book(),calendar:datetime()) -> {ok,lib_user:lib_user()} | none.
+whoBorrowed({ID,BookInfo,Check_out_info},Date) ->
+
+    none.
+
+
 
 
 
