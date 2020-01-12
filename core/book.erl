@@ -107,7 +107,7 @@ whoBorrowed(#book{id =ID,check_out_info =CheckOutList},Date) ->
     case Result of
         [#check_out_info{by = By}] -> {ok,By};
         [#check_out_info{by = By}| ShouldntHappen] ->
-            io:format("Warning, multiple checkouts overlapping in time for book ~s: ~n~s~n",[Result]),
+            io:format("Warning, multiple checkouts overlapping in time for book ~s: ~n~s~n",[ID,Result]),
             {ok,By};
         [] -> none
     end.
