@@ -1,6 +1,6 @@
 -module(book).
 
--export([create/1,borrow/4, return/3, extend/3]).
+-export([create/1,borrow/4, return/3, extend/3,whoBorrowed/2]).
 -export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
 -define(CheckOutPeriotInDays, 90).
 -define(PunishmentRate, 0.20).
@@ -96,10 +96,22 @@ extend(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
         end
     end.
 
--spec whoBorrowed(book(),calendar:datetime()) -> {ok,lib_user:lib_user()} | none.
-whoBorrowed({ID,BookInfo,Check_out_info},Date) ->
+-spec whoBorrowed(book(),fun(() ->calendar:datetime())) -> {ok,lib_user:user_card_id()} | none.
+whoBorrowed(#book{id =ID,check_out_info =CheckOutList},Date) ->
+    DateVal = Date(),
+    %very unoptimised, filters all and is looking only for one
+    Result = list:filter(fun(#check_out_info{since = Since,till = Till}) -> 
+        Since_sec = calendar:datetime_to_gregorian_seconds(Since),
+        Till_sec = calendar:datetime_to_gregorian_seconds(Till),
+        ((Since_sec =< DateVal) and (Till_sec > DateVal)) end ,CheckOutList),
+    case Result of
+        [#check_out_info{by = By}] -> {ok,By};
+        [#check_out_info{by = By}| ShouldntHappen] ->
+            io:format("Warning, multiple checkouts overlapping in time for book ~s: ~n~s~n",[Result]),
+            {ok,By};
+        [] -> none
+    end.
 
-    none.
 
 
 
