@@ -1,4 +1,8 @@
 -module(lib_server_handler_spawn).
+
+-include_lib("core/src/core_book.hrl").
+-include_lib("core/src/core_lib_user.hrl").
+
 -define(ClientWaitTime,60000).
 -define(ServerWaitTime,500).
 
@@ -6,7 +10,6 @@
 -type handler_data() :: #handler_data{}.
 -record(client_request_data,{request_type::atom(),ref::reference(),data::any()}).
 -type client_request_data() :: #client_request_data{}.
-
 
 
 -spec createHandler(atom(),pid(),reference(),any()) -> pid().
@@ -32,15 +35,12 @@ handleBookRentRequest(HandlerData,{BookID,UserID}) ->
     Client = HandlerData#handler_data.clientID,
     Server = HandlerData#handler_data.coreID,
     case catch(gen_server:call(Server,{dbQuery,{getBookByID,UserID}},?ServerWaitTime)) of
-        {dbReply,Book} ->
+        {dbReply,Book=#book{book_info=BookInfo#book_info{title=Title}}} ->
             case catch(gen_server:call(Server,{dbQuery,{getUserByID,UserID}},?ServerWaitTime)) of
-                {dbReply,User} ->
-                    canRent = core_lib_user:getCanRent(User),
-                    Username = core_lib_user:getName(User),
-                    Title = core_book:getName(core_book:getBookInfo(Book)),
+                {dbReply,User#lib_user{name=Username, can_rent=CanRent}} ->
                     if 
-                        canRent ->
-                            Client!{canRent,{Username,Book},Ref,self()};
+                        CanRent ->
+                            Client!{CanRent,{Username,Book},Ref,self()};
                         true -> 
                             Client!{canNotRent,{Username,Book},Ref,self()}
                     end;
@@ -79,6 +79,3 @@ serviceTimeoutResponse(HandlerData) ->
     Client = HandlerData#handler_data.clientID,
     Client!{serviceTimeout,noData,Ref,self()},
     ok.
-
-
-

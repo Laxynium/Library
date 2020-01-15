@@ -1,7 +1,7 @@
 -module(core_book).
 -include("core_book.hrl").
 
--export([create/1,borrow/4, return/3, extend/3,whoBorrowed/2,isBorrowed/1]).
+-export([create/1,borrow/4, return/3, extend/3, whoBorrowed/2, isBorrowed/1]).
 -export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
 
 -define(CheckOutPeriotInDays, 90).
