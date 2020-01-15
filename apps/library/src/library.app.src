@@ -1,0 +1,14 @@
+{application, library,
+ [{description, "Root of the application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, [library_server,library_application,library_checkout_points_sup,library_staff_points_sup]},
+  {mod, {library_server,[]}},
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

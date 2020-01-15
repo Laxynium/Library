@@ -1,4 +1,4 @@
--module(lib_user).
+-module(core_lib_user).
 
 -export([create/3,lockRenting/1,unlockRenting/1]).
 -export_type([user_card_id/0,lib_user/0]).

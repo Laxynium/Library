@@ -1,0 +1,15 @@
+{application, core,
+ [{description, "Core logic of the application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib,
+    crypto
+   ]},
+  {env,[]},
+  {modules, [core_book, core_lib_user, core_uuid]},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.

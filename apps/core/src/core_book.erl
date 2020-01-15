@@ -1,4 +1,4 @@
--module(book).
+-module(core_book).
 
 -export([create/1,borrow/4, return/3, extend/3,whoBorrowed/2]).
 -export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
@@ -33,7 +33,7 @@
 
 -spec create(book_info()) -> book().
 create(BookInfo) ->
-    {{uuid:v4()}, BookInfo, []}.
+    {{<<60,87,156,164,21,6,66,201,158,83,105,96,190,123,73,242>>}, BookInfo, []}.
 
 -spec borrow(lib_user:user_card_id(), fun((lib_user:user_card_id())->boolean()), fun(()->calendar:datetime()), book()) -> {ok, book()} | cannot_borrow |already_borrowed.
 borrow(StudentId, CanBorrow, Now,{Id,BookInfo, Checkouts}) ->
@@ -106,7 +106,7 @@ whoBorrowed(#book{id =ID,check_out_info =CheckOutList},Date) ->
         ((Since_sec =< DateVal) and (Till_sec > DateVal)) end ,CheckOutList),
     case Result of
         [#check_out_info{by = By}] -> {ok,By};
-        [#check_out_info{by = By}| ShouldntHappen] ->
+        [#check_out_info{by = By}| _ShouldntHappen] ->
             io:format("Warning, multiple checkouts overlapping in time for book ~s: ~n~s~n",[ID,Result]),
             {ok,By};
         [] -> none
