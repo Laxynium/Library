@@ -1,5 +1,6 @@
 -module(lib_server_handler_spawn).
--define(ResponseWaitTime,400).
+-define(ClientWaitTime,60000).
+-define(ServerWaitTime,500).
 
 -record(handler_data,{coreID::pid(),clientID::pid(),request_reference::reference()}).
 -type handler_data() :: #handler_data{}.
@@ -27,23 +28,57 @@ echoHandle(#handler_data{clientID =Client,request_reference = Ref} = HandlerData
 %handles connection for renting
 -spec handleBookRentRequest(handler_data(),{core_book:book_id(),lib_user:user_card_id()}) -> ok.
 handleBookRentRequest(HandlerData,{BookID,UserID}) ->
-
-    try gen_server:call(Server,{dbQuery,{canUserRent,UserID}}) of
-        {dbReply,true} ->
-            User = 
-            Client!{canRent,noData,}
-    catch
-        Throw -> 
-        
-
-    
+    Ref = HandlerData#handler_data.request_reference,
+    Client = HandlerData#handler_data.clientID,
+    Server = HandlerData#handler_data.coreID,
+    case catch(gen_server:call(Server,{dbQuery,{getBookByID,UserID}},?ServerWaitTime)) of
+        {dbReply,Book} ->
+            case catch(gen_server:call(Server,{dbQuery,{getUserByID,UserID}},?ServerWaitTime)) of
+                {dbReply,User} ->
+                    canRent = core_lib_user:getCanRent(User),
+                    Username = core_lib_user:getName(User),
+                    Title = core_book:getName(core_book:getBookInfo(Book)),
+                    if 
+                        canRent ->
+                            Client!{canRent,{Username,Book},Ref,self()};
+                        true -> 
+                            Client!{canNotRent,{Username,Book},Ref,self()}
+                    end;
+                _ -> serviceUnavilableResponse(HandlerData)
+            end;
+        _ -> serviceUnavilableResponse(HandlerData)
     end,
-    
     dieHandler(HandlerData).
+
+confirmRentingBook(HandlerData) ->
+    Ref = HandlerData#handler_data.request_reference,
+    Client = HandlerData#handler_data.clientID,
+    receive
+        {rentingConfirmation,noData,Ref,Client} ->
+            
+    after 
+        ?ClientWaitTime -> serviceTimeoutResponse(HandlerData)
+    end.
+
 
 -spec dieHandler(handler_data()) -> ok.
 dieHandler(#handler_data{coreID = Server}) ->
     gen_server:cast(coreID,{handlerDone,self()}),
     ok.
+
+-spec serviceUnavilableResponse(handler_data()) -> ok.
+serviceUnavilableResponse(HandlerData) ->
+    Ref = HandlerData#handler_data.request_reference,
+    Client = HandlerData#handler_data.clientID,
+    Client!{serviceUnavilable,noData,Ref,self()},
+    ok.
+
+-spec serviceTimeoutResponse(handler_data()) -> ok.
+serviceTimeoutResponse(HandlerData) ->
+    Ref = HandlerData#handler_data.request_reference,
+    Client = HandlerData#handler_data.clientID,
+    Client!{serviceTimeout,noData,Ref,self()},
+    ok.
+
 
 

@@ -1,6 +1,6 @@
 -module(core_book).
 
--export([create/1,borrow/4, return/3, extend/3,whoBorrowed/2,isBorrowed/1,getBookInfo/1,getTitle/1]).
+-export([create/1,borrow/4, return/3, extend/3,whoBorrowed/2,isBorrowed/1,getBookInfo/1,getTitle/1,getID/1]).
 -export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
 -define(CheckOutPeriotInDays, 90).
 -define(PunishmentRate, 0.20).
