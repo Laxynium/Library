@@ -4,9 +4,6 @@
 -export([create/3,lockBorrowing/1,unlockBorrowing/1]).
 -export_type([user_card_id/0,lib_user/0]).
 
--type user_card_id() :: string().
--type lib_user() :: #lib_user{}.
-
 -spec create(string(),user_card_id(),fun(()->calendar:datetime())) -> lib_user().
 create(Name,Id,Now) ->
     CreationDate = Now(),

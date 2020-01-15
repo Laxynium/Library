@@ -7,7 +7,7 @@
     stdlib
    ]},
   {env,[]},
-  {modules, [library_server,library_application,library_checkout_points_sup,library_staff_points_sup]},
+  {modules, [library_server,library_application,library_checkout_points_sup,library_staff_points_sup, library_background_timer]},
   {mod, {library_server,[]}},
   {licenses, ["Apache 2.0"]},
   {links, []}

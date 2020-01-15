@@ -1,17 +1,12 @@
 -module(core_book).
 -include("core_book.hrl").
 
--export([create/1,borrow/4, return/3, extend/3, whoBorrowed/2, isBorrowed/1]).
+-export([create/1,borrow/4, return/3, extend/3, whoBorrowed/2, isBorrowed/1, is_overdue/2]).
 -export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
 
 -define(CheckOutPeriotInDays, 90).
 -define(PunishmentRate, 0.20).
 -define(Delay, 3).
-
--type book_id() :: {binary()}.
--type book_info() :: #book_info{}.
--type check_out_info() :: #check_out_info{}.
--type book() :: #book{}.
 
 -spec create(book_info()) -> book().
 create(BookInfo) ->
@@ -97,6 +92,18 @@ isBorrowed(Book) ->
         _ -> true
     end.
 
+-spec is_overdue(book(), fun(() -> calendar:datetime())) -> boolean().
+is_overdue({_Id,_Info, CheckOuts}, Now)->
+    case CheckOuts of
+        [{_,Till,_,false, _}|_] ->
+            is_after(Now(),{Till,{}});
+        _ -> false
+    end.
+    
+is_after({ToCheckDate,_Time}, {ReferenceDate,_})->
+    ToCheckDateInDays = calendar:date_to_gregorian_days(ToCheckDate),
+    ReferenceDateInDays = calendar:date_to_gregorian_days(ReferenceDate),
+    ToCheckDateInDays > ReferenceDateInDays.
 
 
 

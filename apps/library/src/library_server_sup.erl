@@ -10,7 +10,8 @@ start_link() ->
 init(_Args) ->
     SupFlags = #{strategy => one_for_one, intensity => 1, period => 5},
     CheckOutPointsSupervisor = #{id => library_checkout_points_sup, start => {library_checkout_points_sup, start_link, []},type=>supervisor},
-    % ApplicationSupervisor = #{id => library_application, start => {library_application, start_link, []}, type=>worker}, //TODO resolve why its throwing error on boot
+    Application = #{id => library_application, start => {library_application, start_link, []}, type=>worker},
     StaffPointsSupervisor = #{id => library_staff_points_sup, start => {library_staff_points_sup, start_link, []}, type=>supervisor},
-    ChildSpecs = [CheckOutPointsSupervisor, StaffPointsSupervisor],
+    BackgroundTimer = #{id => library_background_timer, start => {library_background_timer, start_link, [{10000, library_application, fun () -> calendar:universal_time() end}]}, type=>worker},
+    ChildSpecs = [Application, CheckOutPointsSupervisor, StaffPointsSupervisor, BackgroundTimer],
     {ok, {SupFlags, ChildSpecs}}.

@@ -15,3 +15,8 @@
     book_info :: book_info(),
     check_out_info :: [check_out_info()]
 }).
+
+-type book_id() :: {binary()}.
+-type book_info() :: #book_info{}.
+-type check_out_info() :: #check_out_info{}.
+-type book() :: #book{}.
