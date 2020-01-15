@@ -68,7 +68,7 @@ confirmBorrowingBook(HandlerData,{BookID,UserID}) ->
         {borrowingConfirmation,noData,Ref,Client} ->
             case catch(gen_server:call(Server,{dbUpdate,{borrowBook,{UserID,BookID}},?ServerWaitTime))) of
                 {dbReply,{updateOk,noData}} ->
-                    Client!{bookBorrowed,noData,ref,self()},
+                    Client!{bookBorrowed,noData,Ref,self()},
                 {dbReply,{canNotUpdate,Reason}} -> Client!{couldNotBorrow,Reason,ref,self()};
                 _ -> serviceUnavilableResponse(HandlerData)
         {borrowiingCancelled,noData,Ref,Client} -> ok
