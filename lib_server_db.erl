@@ -1,4 +1,6 @@
 -module(lib_server_db).
+-include_lib("core/src/core_book.hrl").
+-include_lib("core/src/core_lib_user.hrl").
 
 -type book_db() :: [book:book()].
 -type user_db() :: [core_lib_user:lib_user()].
@@ -31,13 +33,11 @@ handleDBupdate({UpdateType,Data},DB) ->
 
 -spec queryGetUserByID(core_lib_user:user_card_id(),db_data()) -> {ok,core_lib_user:lib_user()} | none.
 queryGetUserByID(CardID,#db_data{users = Users})->
-    libutil:firstMatch(fun(User) -> ID = core_lib_user:getID(User),
-                        ID == CardID end,Users).
+    libutil:firstMatch(fun(#lib_user{id=ID}) -> ID == CardID end, Users).
 
 -spec queryGetBookByID(core_book:book_id(),db_data()) -> {ok,core_book:book()} | none.
 queryGetBookByID(BookID,#db_data{books = Books}) ->
-    libutil:firstMatch(fun(Book) -> ID = core_book:getID(Book),
-                        ID == BookID end,Books).
+    libutil:firstMatch(fun(#book{id=ID}) -> ID == BookID end,Books).
 
 updateBorrowBook(BookID,CardID, DB) ->
     Books = DB#db_data.books,

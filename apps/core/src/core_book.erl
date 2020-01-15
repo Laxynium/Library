@@ -1,39 +1,21 @@
 -module(core_book).
+-include("core_book.hrl").
 
--export([create/1,borrow/4, return/3, extend/3,whoBorrowed/2,isBorrowed/1,getBookInfo/1,getTitle/1,getID/1]).
+-export([create/1,borrow/4, return/3, extend/3, whoBorrowed/2, isBorrowed/1]).
 -export_type([book_id/0, book_info/0,check_out_info/0, book/0]).
+
 -define(CheckOutPeriotInDays, 90).
 -define(PunishmentRate, 0.20).
 -define(Delay, 3).
 
 -type book_id() :: {binary()}.
-
--record (book_info,{
-    title::string(), 
-    author::string(), 
-    version::integer()
-}).
 -type book_info() :: #book_info{}.
-
--record(check_out_info, {
-    since :: calendar:date(), 
-    till :: calendar:date(),
-    by :: lib_user:user_card_id(),
-    returned :: boolean(),
-    returned_at :: calendar:date() | {}
-}).
 -type check_out_info() :: #check_out_info{}.
-
--record (book, {
-    id :: book_id(), 
-    book_info :: book_info(),
-    check_out_info :: [check_out_info()]
-}).
 -type book() :: #book{}.
 
 -spec create(book_info()) -> book().
 create(BookInfo) ->
-    {{<<60,87,156,164,21,6,66,201,158,83,105,96,190,123,73,242>>}, BookInfo, []}.
+    {{core_uuid:v4()}, BookInfo, []}.
 
 -spec borrow(lib_user:user_card_id(), fun((lib_user:user_card_id())->boolean()), fun(()->calendar:datetime()), book()) -> {ok, book()} | cannot_borrow |already_borrowed.
 borrow(StudentId, CanBorrow, Now,{Id,BookInfo, Checkouts}) ->
@@ -114,15 +96,6 @@ isBorrowed(Book) ->
         none -> false;
         _ -> true
     end.
-
--spec getBookInfo(book()) -> book_info().
-getBookInfo(#book{book_info = Info}) -> Info.
-
--spec getTitle(book_info()) -> string().
-getTitle(#book_info{title = Title}) -> Title.
-
--spec getID(book()) -> book_id().
-getID(#book{id = ID}) -> ID.
 
 
 
