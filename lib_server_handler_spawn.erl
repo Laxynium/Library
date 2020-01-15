@@ -48,7 +48,7 @@ handleBookRentRequest(HandlerData,{BookID,UserID}) ->
 
                     if 
                         CanRent ->
-                            Client!{CanRent,{Username,Book},Ref,self()};
+                            Client!{canRent,{Username,Book},Ref,self()};
                         true -> 
                             Client!{canNotRent,{Username,Book},Ref,self()}
                     end;
@@ -59,12 +59,19 @@ handleBookRentRequest(HandlerData,{BookID,UserID}) ->
     end,
     dieHandler(HandlerData).
 
-confirmRentingBook(HandlerData) ->
+confirmRentingBook(HandlerData,{BookID,UserID}) ->
+    Server = HandlerData#handler_data.coreID,
     Ref = HandlerData#handler_data.request_reference,
     Client = HandlerData#handler_data.clientID,
     receive
         {rentingConfirmation,noData,Ref,Client} ->
-
+            case catch(gen_server:call(Server,{dbUpdate,{borrowBook,{UserID,BookID}},?ServerWaitTime))) of
+                {dbReply,ok} ->
+                    Client!{bookRented,noData,ref,self()},
+                    ok;
+                {dbReply,canNotUpdate} -> Client!{couldNotRent,noData,ref,self()};
+                _ -> serviceUnavilableResponse(HandlerData)
+        {rentingCancelled,noData,Ref,Client} -> ok
     after 
         ?ClientWaitTime -> serviceTimeoutResponse(HandlerData)
     end.
