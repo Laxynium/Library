@@ -26,8 +26,8 @@ handleDBquery(#db_query_request{type = QueryType,data = QueryData},DB) ->
         _ -> queryError
     end.
 
-handleDBupdate({UpdateType,Data},Db_data) ->
-    {ok,Db_data}.
+handleDBupdate({UpdateType,Data},DB) ->
+    {ok,DB}.
 
 -spec queryGetUserByID(core_lib_user:user_card_id(),db_data()) -> {ok,core_lib_user:lib_user()} | none.
 queryGetUserByID(CardID,#db_data{users = Users})->
@@ -38,6 +38,23 @@ queryGetUserByID(CardID,#db_data{users = Users})->
 queryGetBookByID(BookID,#db_data{books = Books}) ->
     libutil:firstMatch(fun(Book) -> ID = core_book:getID(Book),
                         ID == BookID end,Books).
+
+updateBorrowBook(BookID,CardID, DB) ->
+    Books = DB#db_data.books,
+    {ok,Book} = queryGetBookByID(BookID,DB),
+    case core_book:borrow(CardID,fun(X) -> core_lib_user:getCanRent(X) end,fun() ->calendar:universal_time() end,Book) of
+        {ok, NewBook} -> 
+            NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> )]
+
+    NewBooks = 
+
+    ok.
+
+
+
+
+
+
 
 
 

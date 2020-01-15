@@ -32,8 +32,12 @@ handleBookRentRequest(HandlerData,{BookID,UserID}) ->
     Client = HandlerData#handler_data.clientID,
     Server = HandlerData#handler_data.coreID,
     case catch(gen_server:call(Server,{dbQuery,{getBookByID,UserID}},?ServerWaitTime)) of
+        {dbReply, none} ->
+            Client!{canNotRent,noData,Ref,self()};
         {dbReply,Book} ->
             case catch(gen_server:call(Server,{dbQuery,{getUserByID,UserID}},?ServerWaitTime)) of
+                {dbReply, none} ->
+                    Client!{canNotRent,noData,Ref,self()};
                 {dbReply,User} ->
                     canRent = core_lib_user:getCanRent(User),
                     Username = core_lib_user:getName(User),
@@ -46,6 +50,7 @@ handleBookRentRequest(HandlerData,{BookID,UserID}) ->
                     end;
                 _ -> serviceUnavilableResponse(HandlerData)
             end;
+        
         _ -> serviceUnavilableResponse(HandlerData)
     end,
     dieHandler(HandlerData).
@@ -55,7 +60,7 @@ confirmRentingBook(HandlerData) ->
     Client = HandlerData#handler_data.clientID,
     receive
         {rentingConfirmation,noData,Ref,Client} ->
-            
+
     after 
         ?ClientWaitTime -> serviceTimeoutResponse(HandlerData)
     end.
