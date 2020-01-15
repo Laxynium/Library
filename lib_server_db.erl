@@ -18,6 +18,7 @@
 loadDBFromFile(Path) ->
     ok.
 
+
 -spec handleDBquery(db_query_request(),db_data()) -> any().
 handleDBquery(#db_query_request{type = QueryType,data = QueryData},DB) ->
     case QueryType of 
@@ -28,6 +29,8 @@ handleDBquery(#db_query_request{type = QueryType,data = QueryData},DB) ->
         _ -> queryError
     end.
 
+
+-spec handleDBupdate({atom(),any()},db_data()) -> {{atom(),any()},db_data()}
 handleDBupdate({UpdateType,Data},DB) ->
     case UpdateType of 
         borrowBook -> updateBorrowBook(Data,DB);
@@ -35,15 +38,18 @@ handleDBupdate({UpdateType,Data},DB) ->
         _ -> {{updateError,badRequest},DB}
     end.
 
+
 -spec queryGetUserByID(core_lib_user:user_card_id(),db_data()) -> {ok,core_lib_user:lib_user()} | none.
 queryGetUserByID(CardID,#db_data{users = Users})->
     libutil:firstMatch(fun(#lib_user{id=ID}) -> ID == CardID end, Users).
+
 
 -spec queryGetBookByID(core_book:book_id(),db_data()) -> {ok,core_book:book()} | none.
 queryGetBookByID(BookID,#db_data{books = Books}) ->
     libutil:firstMatch(fun(#book{id=ID}) -> ID == BookID end,Books).
 
--spec updateBorrowBook({user_card_id(),book_id()},db_data()) -> {updateOk,db_data()}.
+
+-spec updateBorrowBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | ({canNotUpdate,any()},db_data().
 updateBorrowBook({UserID,BookID}, DB) ->
     Books = DB#db_data.books,
     case queryGetBookByID(BookID,DB) of
@@ -58,7 +64,7 @@ updateBorrowBook({UserID,BookID}, DB) ->
 end.
     
 
--spec updateReturnBook({user_card_id(),book_id()},db_data()) -> {updateOk,db_data()}.
+-spec updateReturnBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | ({canNotUpdate,any()},db_data().
 updateReturnBook({UserID,BookID}, DB) ->
     Books =DB#db_data.books,
     case queryGetBookByID(BookID,DB) of
