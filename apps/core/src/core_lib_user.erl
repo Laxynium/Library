@@ -1,15 +1,10 @@
 -module(core_lib_user).
+-include("core_lib_user.hrl").
 
 -export([create/3,lockRenting/1,unlockRenting/1,getID/1,getCanRent/1,getCreationDate/1,getName/1]).
--export_type([user_card_id/0,lib_user/0,user_card_id/0]).
+-export_type([user_card_id/0,lib_user/0]).
 
 -type user_card_id() :: string().
-
--record(lib_user,{
-    name::string(),
-    id::user_card_id(),
-    creation_date::calendar:datetime(),
-    can_rent::boolean()}).
 -type lib_user() :: #lib_user{}.
 
 -spec create(string(),user_card_id(),fun(()->calendar:datetime())) -> lib_user().
