@@ -1,5 +1,5 @@
 -module(lib_server_reasons).
--export([noUser/0,noBook/0,bookBorrowed/0,userCantBorrow/0,notBorrowedByUser/0,alreadyBorrowed/0]).
+-compile([export_all]).
 
 noUser() -> "User not in system".
 noBook() -> "Book not in library".
@@ -7,3 +7,6 @@ bookBorrowed() -> "Book is already borrowed".
 userCantBorrow() -> "This user can't currenly borrow books".
 notBorrowedByUser() -> "This book is not borrowed by this user".
 alreadyBorrowed() -> "This book is already borrowed".
+tooLateToExtend() -> "It's too late to extend".
+bookAlreadyExists() -> "There already exists book with that id".
+userAlreadyExists() -> "There already exists user with that id".

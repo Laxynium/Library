@@ -30,11 +30,15 @@ handleDBquery(#db_query_request{type = QueryType,data = QueryData},DB) ->
     end.
 
 
--spec handleDBupdate({atom(),any()},db_data()) -> {{atom(),any()},db_data()}
+-spec handleDBupdate({atom(),any()},db_data()) -> {{atom(),any()},db_data()}.
 handleDBupdate({UpdateType,Data},DB) ->
     case UpdateType of 
         borrowBook -> updateBorrowBook(Data,DB);
         returnBook -> updateReturnBook(Data,DB);
+        addBook -> updateAddBook(Data,DB);
+        addUser -> updateAddUser(Data,DB);
+        removeBook -> updateRemoveBook(Data,DB);
+        removeUser -> updateRemoveUser(Data,DB);
         _ -> {{updateError,badRequest},DB}
     end.
 
@@ -49,34 +53,99 @@ queryGetBookByID(BookID,#db_data{books = Books}) ->
     libutil:firstMatch(fun(#book{id=ID}) -> ID == BookID end,Books).
 
 
--spec updateBorrowBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | ({canNotUpdate,any()},db_data().
+-spec updateBorrowBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
 updateBorrowBook({UserID,BookID}, DB) ->
     Books = DB#db_data.books,
     case queryGetBookByID(BookID,DB) of
     {ok,Book} -> case core_book:borrow(UserID,fun(X) -> X#lib_user.can_borrow end,fun() ->calendar:universal_time() end,Book) of
         {ok, NewBook} -> 
-            NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> X#book.id == CardID end,DB#db_data.books)],
+            NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> X#book.id == UserID end,DB#db_data.books)],
             {{updateOk,noData},DB#db_data{books = NewBooks}};
-        cannot_borrow -> {{canNotUpdate,lib_server_reasons:userCantBorrow()},DB};
-        already_borrowed -> {{canNotUpdate,lib_server_reasons:alreadyBorrowed()},DB}
+        cannot_borrow -> 
+            {{canNotUpdate,lib_server_reasons:userCantBorrow()},DB};
+        already_borrowed -> 
+            {{canNotUpdate,lib_server_reasons:alreadyBorrowed()},DB}
         end;
     none -> {{canNotUpdate,lib_server_reasons:noBook()},DB}
 end.
     
 
--spec updateReturnBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | ({canNotUpdate,any()},db_data().
+-spec updateReturnBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
 updateReturnBook({UserID,BookID}, DB) ->
     Books =DB#db_data.books,
     case queryGetBookByID(BookID,DB) of
         {ok,Book} -> case core_book:return(UserID,fun() -> calendar:universal_time() end, Book ) of
             {ok, NewBook} ->
-                NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> X#book.id == CardID end,DB#db_data.books)],
-                {{updateOk,noData},DB#db_data{books = NewBooks};
-            {punishment,Value,NewBook} -> {{punishment,Value},DB#db_data{books = NewBooks}};
-            book_not_borrowed -> {{canNotUpdate,lib_server_reasons:notBorrowedByUser()},DB}
+                NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> X#book.id == UserID end,DB#db_data.books)],
+                {{updateOk,NewBook},DB#db_data{books = NewBooks}};
+            {punishment,Value,NewBook} -> 
+                NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> X#book.id == UserID end,DB#db_data.books)],
+                {{punishment,Value},DB#db_data{books = NewBooks}};
+            book_not_borrowed -> 
+                {{canNotUpdate,lib_server_reasons:notBorrowedByUser()},DB}
         end;
     none -> {{canNotUpdate,lib_server_reasons:noBook()},DB}
 end.
+
+-spec updateExtendBook({user_card_id(),book_id()},db_data()) -> {{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
+updateExtendBook({UserID,BookID}, DB) ->
+    Books =DB#db_data.books,
+    case queryGetBookByID(BookID,DB) of
+        {ok,Book} -> case core_book:extend(UserID,fun() -> calendar:universal_time() end, Book ) of
+            {ok, NewBook} ->
+                NewBooks = [NewBook| libutil:deleteFirstMatch(fun(X) -> X#book.id == UserID end,DB#db_data.books)],
+                {{updateOk,NewBook},DB#db_data{books = NewBooks}};
+            too_late -> 
+                {{canNotUpdate,lib_server_reasons:tooLateToExtend()},DB};
+            book_not_borrowed -> 
+                {{canNotUpdate,lib_server_reasons:notBorrowedByUser()},DB}
+        end;
+    none -> {{canNotUpdate,lib_server_reasons:noBook()},DB}
+end.
+
+-spec updateAddBook(book(),db_data()) ->{{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
+updateAddBook(Book,DB)->
+    Books =DB#db_data.books,
+    case queryGetBookByID(Book#book.id,DB) of
+        {ok,_Book} -> 
+            {{canNotUpdate,lib_server_reasons:bookAlreadyExists()},DB};
+        none -> 
+            NewBooks = [Book|Books],
+            {{updateOk,Book},DB#db_data{books = NewBooks}}
+    end.
+
+-spec updateAddUser(lib_user(),db_data()) ->{{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
+updateAddUser(User,DB) ->
+    Users = DB#db_data.users,
+    case queryGetUserByID(User#lib_user.id,DB) of
+        {ok,_User} -> 
+            {{canNotUpdate,lib_server_reasons:userAlreadyExists()},DB};
+        none -> 
+            NewUsers = [User|Users],
+            {{updateOk,User},DB#db_data{users = NewUsers}}
+    end.
+
+-spec updateRemoveBook(book_id(),db_data()) ->{{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
+updateRemoveBook(BookID,DB) ->
+    Books = DB#db_data.books,
+    case queryGetBookByID(BookID,DB) of
+        {ok,Book} -> 
+            NewBooks = libutil:deleteFirstMatch(fun(X) -> X#book.id == BookID end, Books),
+            {{updateOk,Book},DB#db_data{books = NewBooks}};
+        none ->
+            {{canNotUpdate,lib_server_reasons:noBook()},DB}
+        end.
+
+-spec updateRemoveUser(user_card_id(),db_data()) ->{{updateOk,any()},db_data()} | {{canNotUpdate,any()},db_data()}.
+updateRemoveUser(UserID,DB) ->
+    Users = DB#db_data.users,
+    case queryGetBookByID(UserID,DB) of
+        {ok,User} -> 
+            NewUsers = libutil:deleteFirstMatch(fun(X) -> X#book.id == UserID end, Users),
+            {{updateOk,User},DB#db_data{books = NewUsers}};
+        none ->
+            {{canNotUpdate,lib_server_reasons:noUser()},DB}
+        end.
     
 
 

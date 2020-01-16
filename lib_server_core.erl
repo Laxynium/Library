@@ -47,6 +47,7 @@ handle_call({RequestType,Data,Ref},From,State) ->
     Handlers = State#server_state.handlers,
     {noreply,State#server_state{handlers = [NewHandlerPID | Handlers]}}.
 
+%handler cleanup
 handle_cast({handlerDone,HandlerID}, State) ->
     Handlers = State#server_state.handlers,
     NewHandlers = libutil:deleteFirstMatch(fun(ID) -> ID == HandlerID end,State#server_state.handlers),
@@ -56,8 +57,9 @@ handle_info(_Msg, State) ->
     io:format("Unexpected message: ~p~n",[_Msg]),
    {noreply, State}.
 
-terminate(_Reason, _State) ->
-    %TODO kill all active handlers, save DB
+terminate(_Reason, State) ->
+    lists:foreach(fun(Handler) -> exit(Handler,kill) end,State#server_state.handlers),
+    %TODO save DB
 
    ok.
 
