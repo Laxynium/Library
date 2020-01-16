@@ -45,7 +45,6 @@ handleBookBorrowRequest(HandlerData,{BookID,UserID}) ->
                     CanBorrow = User#lib_user.can_borrow,
                     Username = User#lib_user.name,
                     Title = Book#book.book_info#book_info.title,
-
                     if 
                         CanBorrow ->
                             Client!{canBorrow,{Username,Book},Ref,self()};
@@ -59,26 +58,30 @@ handleBookBorrowRequest(HandlerData,{BookID,UserID}) ->
     end,
     dieHandler(HandlerData).
 
--spec confirmBorrowingBook(handler_data(),{core_book:book(),core_lib_user()}) -> ok.
-confirmBorrowingBook(HandlerData,{BookID,UserID}) ->
+-spec confirmBorrowingBook(handler_data(),{core_book:book(),lib_user()}) -> ok.
+confirmBorrowingBook(HandlerData,{UserID,BookID}) ->
     Server = HandlerData#handler_data.coreID,
     Ref = HandlerData#handler_data.request_reference,
     Client = HandlerData#handler_data.clientID,
     receive
         {borrowingConfirmation,noData,Ref,Client} ->
-            case catch(gen_server:call(Server,{dbUpdate,{borrowBook,{UserID,BookID}},?ServerWaitTime))) of
+            case catch(gen_server:call(Server,{dbUpdate,{borrowBook,{UserID,BookID}}},?ServerWaitTime)) of
                 {dbReply,{updateOk,noData}} ->
-                    Client!{bookBorrowed,noData,Ref,self()},
-                {dbReply,{canNotUpdate,Reason}} -> Client!{couldNotBorrow,Reason,ref,self()};
-                _ -> serviceUnavilableResponse(HandlerData)
+                    Client!{bookBorrowed,noData,Ref,self()};
+                {dbReply,{canNotUpdate,Reason}} ->
+                    Client!{couldNotBorrow,Reason,ref,self()};
+                _ ->
+                    serviceUnavilableResponse(HandlerData)
+            end;
         {borrowiingCancelled,noData,Ref,Client} -> ok
     after 
-        ?ClientWaitTime -> serviceTimeoutResponse(HandlerData)
+        ?ClientWaitTime ->
+            serviceTimeoutResponse(HandlerData)
     end.
 
 %handles connection for returning book
 -spec handleBookReturnRequest(handler_data(),{core_book:book_id(),lib_user:user_card_id()}) -> ok.
-handleBookReturnRequest(HandlerData,{BookID,UserID}) ->
+handleBookReturnRequest(HandlerData,{UserID,BookID}) ->
     Ref = HandlerData#handler_data.request_reference,
     Client = HandlerData#handler_data.clientID,
     Server = HandlerData#handler_data.coreID,
@@ -92,23 +95,39 @@ handleBookReturnRequest(HandlerData,{BookID,UserID}) ->
                 {dbReply,User} ->
                     Username = User#lib_user.name,
                     Title = Book#book.book_info#book_info.title,
-                        case catch(gen_server:call(Server,{dbUpdate,{returnBook,{UserID,BookID}},?ServerWaitTime)) of
+                        case catch(gen_server:call(Server,{dbUpdate,{returnBook,{UserID,BookID}}},?ServerWaitTime)) of
                             {dbReply,{updateOk,_}} ->
                                 Client!{bookReturned,{Username,Title},Ref,self()};
-                            {dbReply,{punishment,PunshmentValue}} ->
+                            {dbReply,{punishment,PunishmentValue}} ->
                                 Client!{bookReturnedAndPunishment,{Username,Title,PunishmentValue},Ref,self()};
                             {dbReply,{canNotUpdate,Reason}} ->
-                                Client!{cantReturnBook,{Username,Title}}
-                            _ -> serviceUnavilableResponse(HandlerData)
-                _ -> serviceUnavilableResponse(HandlerData)
+                                Client!{cantReturnBook,{Username,Title}};
+                            _ ->
+                                serviceUnavilableResponse(HandlerData)
+                        end;
+                _ -> 
+                    serviceUnavilableResponse(HandlerData)
             end;
-        
-        _ -> serviceUnavilableResponse(HandlerData)
+        _ ->
+            serviceUnavilableResponse(HandlerData)
     end,
     dieHandler(HandlerData).
 
+%handles connection for extending book
 
-
+handleBookExtendRequest(HandlerData,{UserID,BookID}) ->
+    Ref = HandlerData#handler_data.request_reference,
+    Client = HandlerData#handler_data.clientID,
+    Server = HandlerData#handler_data.coreID,
+    case catch(gen_server:call(Server,{dbUpdate,{extendBook,{UserID,BookID}}},?ServerWaitTime)) of
+        {dbReply,{updateOk,Book}} ->
+            Client!{bookExtended,Book,Ref,self()};
+        {dbReply,{canNotUpdate,Reason}} ->
+            Client!{cantExtedBook,Reason,Ref,self()};
+        _ ->
+            serviceUnavilableResponse(HandlerData)
+    end,
+    dieHandler(HandlerData).
 
 %special handler responses
 -spec dieHandler(handler_data()) -> ok.

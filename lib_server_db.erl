@@ -35,6 +35,7 @@ handleDBupdate({UpdateType,Data},DB) ->
     case UpdateType of 
         borrowBook -> updateBorrowBook(Data,DB);
         returnBook -> updateReturnBook(Data,DB);
+        extendBook -> updateExtendBook(Data,DB);
         addBook -> updateAddBook(Data,DB);
         addUser -> updateAddUser(Data,DB);
         removeBook -> updateRemoveBook(Data,DB);
