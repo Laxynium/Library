@@ -141,7 +141,7 @@ updateRemoveUser(UserID,DB) ->
     Users = DB#db_data.users,
     case queryGetBookByID(UserID,DB) of
         {ok,User} -> 
-            NewUsers = libutil:deleteFirstMatch(fun(X) -> X#book.id == UserID end, Users),
+            NewUsers = libutil:deleteFirstMatch(fun(X) -> X#lib_user.id == UserID end, Users),
             {{updateOk,User},DB#db_data{books = NewUsers}};
         none ->
             {{canNotUpdate,lib_server_reasons:noUser()},DB}
