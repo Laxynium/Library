@@ -15,10 +15,8 @@ handle_call(_Request, _From, State) ->
 handle_cast({ClientPId, Fn}, State) ->
    Result = Fn(),
    gen_server:reply(ClientPId, Result),
-   {noreply, State}.
+   {stop, normal, State}.
 
 handle_info(_Msg, State) ->
    io:format("Unexpected message: ~p~n",[_Msg]),
    {noreply, State}.
-
-
