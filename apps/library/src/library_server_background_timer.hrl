@@ -1,0 +1,1 @@
+-record(subscriber, {process_name, period, message, timer}).

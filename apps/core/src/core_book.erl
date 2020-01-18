@@ -96,9 +96,9 @@ isBorrowed(Book) ->
     end.
 
 -spec is_overdue(book(), fun(() -> calendar:datetime())) -> boolean().
-is_overdue({_Id,_Info, CheckOuts}, Now)->
+is_overdue(#book{check_out_info=CheckOuts}, Now)->
     case CheckOuts of
-        [{_,Till,_,false, _}|_] ->
+        [#check_out_info{till=Till,returned=false}|_] ->
             is_after(Now(),{Till,{}});
         _ -> false
     end.
