@@ -1,4 +1,4 @@
--module(library_server).
+-module(library_server_app).
 -behaviour(application).
 
 -export([start/2, stop/1]).

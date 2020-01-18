@@ -8,38 +8,40 @@
 -define(PunishmentRate, 0.20).
 -define(Delay, 3).
 
--spec create(book_info()) -> book().
-create(BookInfo) ->
-    {{core_uuid:v4()}, BookInfo, []}.
+-spec create(book_info()) -> {ok, book()}.
+create(BookInfo=#book_info{}) ->
+    {ok,#book{id={core_uuid:v4()}, book_info=BookInfo, check_out_info=[]}}.
 
--spec borrow(lib_user:user_card_id(), fun((lib_user:user_card_id())->boolean()), fun(()->calendar:datetime()), book()) -> {ok, book()} | cannot_borrow |already_borrowed.
-borrow(StudentId, CanBorrow, Now,{Id,BookInfo, Checkouts}) ->
+-spec borrow(lib_user:user_card_id(), fun((lib_user:user_card_id())->boolean()), fun(()->calendar:datetime()), book()) 
+    -> {ok, book()} | {fail, cannot_borrow} | {fail, already_borrowed}.
+borrow(StudentId, CanBorrow, Now, #book{id=Id,book_info=BookInfo, check_out_info=Checkouts}) ->
     case CanBorrow(StudentId) of 
         false -> 
-            cannot_borrow;
+            {fail, cannot_borrow};
         true ->
             case Checkouts of 
-                [{_,_,_,Returned,_}|_] when not Returned ->
-                    already_borrowed;
-                [LastCheckOut|Older] -> %TODO refactor it to common function
+                [#check_out_info{returned=Returned}|_] when not Returned ->
+                    {fail, already_borrowed};
+                [LastCheckOut=#check_out_info{}|Older] ->
                     {Since,_Time} = Now(),
                     Till = calendar:gregorian_days_to_date(calendar:date_to_gregorian_days(Since) + ?CheckOutPeriotInDays),
-                    {ok, {Id, BookInfo, [{Since, Till, StudentId, false,{}}, LastCheckOut | Older]}};
+                    {ok, #book{id=Id, book_info=BookInfo, check_out_info=[#check_out_info{since=Since, till=Till, by=StudentId, returned=false, returned_at={}}, LastCheckOut | Older]}};
                 [] ->
                     {Since,_Time} = Now(),
                     Till = calendar:gregorian_days_to_date(calendar:date_to_gregorian_days(Since) + ?CheckOutPeriotInDays),
-                    {ok, {Id, BookInfo, [{Since, Till, StudentId, false,{}}]}}
+                    {ok, #book{id=Id, book_info=BookInfo, check_out_info=[#check_out_info{since=Since, till=Till, by=StudentId, returned=false,returned_at={}}]}}
             end
     end.
 
--spec return(lib_user:user_card_id(), fun(()->calendar:datetime()),book()) -> {ok, book()} | {punishment, float(), book()} | book_not_borrowed. % todo replace with decimal type from some library
-return(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
+-spec return(lib_user:user_card_id(), fun(()->calendar:datetime()),book()) 
+    -> {ok, book()} | {punishment, float(), book()} | {fail, book_not_borrowed}. % todo replace with decimal type from some library
+return(StudentId, Now, #book{id=Id, book_info=BookInfo, check_out_info=CheckOuts}) ->
     case CheckOuts of
         [] ->
-            book_not_borrowed;
-        [{_,_,By,Returned,_}|_] when (By =/= StudentId) or Returned->
-            book_not_borrowed;
-        [{Since,Till,By,_,_}|Older] ->
+            {fail, book_not_borrowed};
+        [#check_out_info{by=By,returned=Returned}|_] when (By =/= StudentId) or Returned->
+            {fail, book_not_borrowed};
+        [#check_out_info{since=Since,till=Till,by=By}|Older] ->
             {CurrentDate, _} = Now(),
             CurrentDateInDays = calendar:date_to_gregorian_days(CurrentDate),
             TillInDays = calendar:date_to_gregorian_days(Till),
@@ -47,29 +49,30 @@ return(StudentId, Now, {Id, BookInfo, CheckOuts}) ->
             if 
                 Difference >= 1 ->
                     Punishment = Difference * ?PunishmentRate,
-                    {punishment, Punishment, {Id, BookInfo, [{Since, Till, By, true, CurrentDate} | Older]}};
-                true -> {ok, {Id, BookInfo, [{Since, Till, By, true, CurrentDate} | Older]}}
+                    {punishment, Punishment, #book{id=Id, book_info=BookInfo, check_out_info=[#check_out_info{since=Since, till=Till, by=By, returned=true, returned_at=CurrentDate} | Older]}};
+                true -> {ok, #book{id=Id, book_info=BookInfo, check_out_info=[#check_out_info{since=Since, till=Till, by=By, returned=true, returned_at=CurrentDate} | Older]}}
             end
     end.
 
--spec extend(lib_user:user_card_id(), fun(()->calendar:datetime()), book()) -> {ok, book()} | too_late | book_not_borrowed.
-extend(StudentId, Now, {Id, BookInfo, CheckOuts}) -> 
+-spec extend(lib_user:user_card_id(), fun(()->calendar:datetime()), book()) 
+-> {ok, book()} | {fail, too_late} | {fail, book_not_borrowed}.
+extend(StudentId, Now, #book{id=Id, book_info=BookInfo, check_out_info=CheckOuts}) -> 
     case CheckOuts of 
         [] -> 
-            book_not_borrowed;
-        [{_,_,By,Returned,_} | _] when (By /= StudentId) or Returned ->
-            book_not_borrowed;
-        [{_Since, Till, By, _, _} | Older] ->
+            {fail, book_not_borrowed};
+        [#check_out_info{by=By,returned=Returned} | _] when (By /= StudentId) or Returned ->
+            {fail, book_not_borrowed};
+        [#check_out_info{till=Till, by=By} | Older] ->
         {CurrentDate, _} = Now(),
         CurrentDateInDays = calendar:date_to_gregorian_days(CurrentDate),
         TillInDays = calendar:date_to_gregorian_days(Till),
         Difference = CurrentDateInDays - (TillInDays + ?Delay),
         if 
             Difference >= 1 ->
-                too_late;
+                {fail, too_late};
             true ->
                 NewTill = calendar:gregorian_days_to_date(calendar:date_to_gregorian_days(CurrentDate) + ?CheckOutPeriotInDays),
-                {ok, {Id, BookInfo, [{CurrentDate, NewTill, By, false,{}} | Older]}}
+                {ok, #book{id=Id, book_info=BookInfo, check_out_info=[#check_out_info{since=CurrentDate, till=NewTill, by=By, returned=false,returned_at={}} | Older]}}
         end
     end.
 

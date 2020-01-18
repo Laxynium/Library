@@ -21,7 +21,7 @@ stop(Name) ->
 
 start_link() ->
     DBpath = "todo",
-    gen_server:start_link({local,lib_server}, ?MODULE, [DBpath], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [DBpath], []).
 
 init(DBpath) ->
     {ok, #server_state{db_data = lib_server_db:loadDBFromFile(DBpath),handlers = []}}.
@@ -54,13 +54,12 @@ handle_cast({handlerDone,HandlerID}, State) ->
    {noreply, State#server_state{handlers = NewHandlers}}.
 
 handle_info(_Msg, State) ->
-    io:format("Unexpected message: ~p~n",[_Msg]),
+    % io:format("Unexpected message: ~p~n",[_Msg]),
    {noreply, State}.
 
 terminate(_Reason, State) ->
     lists:foreach(fun(Handler) -> exit(Handler,kill) end,State#server_state.handlers),
     %TODO save DB
-
    ok.
 
 code_change(_OldVsn, State, _Extra) ->
