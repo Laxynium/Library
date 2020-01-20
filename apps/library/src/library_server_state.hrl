@@ -1,1 +1,1 @@
--record(state,{clients=[], books=[]}).
+-record(state,{clients=[], books=[],version}).

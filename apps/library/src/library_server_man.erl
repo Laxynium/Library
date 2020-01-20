@@ -38,16 +38,9 @@ execute_command(Fn, From, S)->
 
 execute_command_with_after(Fn, From, S, After)->
     {ok, HandlerPId} = supervisor:start_child(library_server_request_handlers_sup, []),
-    Action = fun() ->
-        {ok, State} = gen_server:call(library_server_state, {get_state}),
-        {Result,NewState} = Fn(State),
-        gen_server:cast(library_server_state, {update_state,NewState}),
-        After(),
-        Result
-    end,
-    gen_server:cast(HandlerPId, {From, Action}),
+    gen_server:cast(HandlerPId, {From, Fn, After}),
     {noreply, S}.
-
+        
 execute_query(Fn, From, S)->
     {ok, HandlerPId} = supervisor:start_child(library_server_request_handlers_sup, []),
     Action = fun()->
@@ -64,7 +57,7 @@ execute_query(Fn, From, S)->
 
 add_book({Title, Author, Version}, #state{books=Bs, clients=Cs})->
     {ok,Book} = core_book:create(#book_info{title=Title, author=Author, version=Version}),
-    {Book, #state{books=[Book|Bs],clients=Cs}}.
+    {{ok,Book}, #state{books=[Book|Bs],clients=Cs}}.
 
 add_client({Id, Name}, S = #state{books=Bs, clients=Cs}, Now)->
     IsUnique =  fun (UserId) ->
@@ -74,7 +67,7 @@ add_client({Id, Name}, S = #state{books=Bs, clients=Cs}, Now)->
     case Result of 
         {fail, not_unique} -> {not_unique, S};
         {ok, Client} ->
-        {Client, #state{books=Bs, clients=[Client|Cs]}}
+            {{ok,Client}, #state{books=Bs, clients=[Client|Cs]}}
     end.
 
 %update actions
@@ -89,7 +82,7 @@ borrow_book({BookId, ClientId}, S = #state{books=Bs, clients=Cs}, Now) ->
             Result = core_book:borrow(ClientId, CanBorrow, Now, Book),
             case Result of 
                 {fail, Reason} -> {Reason, S};
-                {ok, UpdatedBook} -> {UpdatedBook, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
+                {ok, UpdatedBook} -> {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
@@ -97,14 +90,19 @@ return_book({BookId, ClientId}, S = #state{books=Bs, clients=Cs}, Now)->
     Book = lists:keyfind(BookId, #book.id, Bs),
     Client = lists:keyfind(ClientId, #lib_user.id, Cs),
     case {Book,Client} of
-        {false,_} -> {book_not_found, S};
-        {_, false} -> {client_not_found, S};
+        {false,_} -> 
+            {book_not_found, S};
+        {_, false} -> 
+            {client_not_found, S};
         _ -> 
             Result = core_book:return(ClientId, Now, Book),
             case Result of 
-                {fail, Reason} -> {Reason, S};
-                {punishment, Amount, UpdatedBook} -> {{punishment, Amount, UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}};
-                {ok, UpdatedBook} -> {UpdatedBook, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
+                {fail, Reason} -> 
+                    {Reason, S};
+                {punishment, Amount, UpdatedBook} -> 
+                    {{ok,{punishment, Amount, UpdatedBook}}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}};
+                {ok, UpdatedBook} -> 
+                    {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
@@ -112,13 +110,17 @@ extend_book({BookId, ClientId}, S = #state{books=Bs, clients=Cs}, Now)->
     Book = lists:keyfind(BookId, #book.id, Bs),
     Client = lists:keyfind(ClientId, #lib_user.id, Cs),
     case {Book,Client} of
-        {false,_} -> {book_not_found, S};
-        {_, false} -> {client_not_found, S};
+        {false,_} -> 
+            {book_not_found, S};
+        {_, false} -> 
+            {client_not_found, S};
         _ -> 
             Result = core_book:extend(ClientId, Now, Book),
             case Result of 
-                {fail, Reason} -> {Reason, S};
-                {ok, UpdatedBook} -> {UpdatedBook, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
+                {fail, Reason} -> 
+                    {Reason, S};
+                {ok, UpdatedBook} -> 
+                    {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
