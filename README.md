@@ -17,3 +17,11 @@ rebar3 shell --sname <name> --apps library
 ```erlang
 net_kernel:connect_node('servername@hostname').
 ```
+
+### Use case diagram
+
+![alt text](docs/Library_use_case_diagram.jpg)
+
+### Architecture
+
+![alt text](docs/Library_architecture.jpg)
