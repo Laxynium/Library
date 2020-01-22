@@ -32,5 +32,8 @@ handle_info(Msg, State) ->
     io:format("Unexpected msg: ~p~n",[Msg]),
     {noreply, State}.
 
+console_log(Message,Data) ->
+   gen_server:cast(library_server_man,{log,Message,Data}).
+
    
     

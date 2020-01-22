@@ -23,6 +23,7 @@ handle_call(_Data,From,State) ->
 
 %update handling
 handle_cast({command, CommandType, From, Data}, State=#man_state{now=Now}) ->
+    io:format("command ~p from ~p~n",[CommandType,From]),
     case CommandType of 
         add_book -> execute_command(From,fun (S) -> add_book(Data,S) end, State);
         add_client -> execute_command(From,fun (S) -> add_client(Data,S, Now) end, State);
@@ -35,7 +36,8 @@ handle_cast({command, CommandType, From, Data}, State=#man_state{now=Now}) ->
         _ -> {reply, bad_request, State}
     end;
 %query handling
-handle_cast({query, QueryType, From, Data},State=#man_state{})->
+handle_cast({'query', QueryType, From, Data},State=#man_state{})->
+    
     case QueryType of
         all_books -> execute_query(From,fun all_books/1, State);
         all_clients -> execute_query(From,fun all_clients/1,State);
@@ -59,6 +61,20 @@ handle_cast({change_current_date_time, Fn}, _S) ->
 handle_cast(_,S)->
     {noreply, S}.
 
+% HANDLE INFO
+%handle update signal
+handle_info({update_if_clients_can_borrow}, S=#man_state{})->
+    io:format("Received signal to refresh client data~n"),
+    update_clients(S),
+    {noreply, S};
+
+handle_info({ok, update_if_clients_can_borrow_done},S)->
+    %io:format("Update of clients finished~n"),
+    {noreply,S};
+handle_info(Msg, State) ->
+    io:format("Unexpected msg: ~p~n",[Msg]),
+    {noreply, State}.
+
 execute_command(From,Fn, S) ->
     execute_command_with_after(From, Fn, fun () -> ok end,S).
 
@@ -78,72 +94,73 @@ execute_query_with_after(From,Fn,After, S)->
 
 %%add actions
 
-add_book({Title, Author, Version}, #state{books=Bs, clients=Cs})->
+add_book({Title, Author, Version}, State = #state{books=Bs, clients=Cs})->
+    library_server_request_handler:console_log("handler adding book",[]),
     {ok,Book} = core_book:create(#book_info{title=Title, author=Author, version=Version}),
-    {{ok,Book}, #state{books=[Book|Bs],clients=Cs}}.
+    {{ok,Book}, State#state{books=[Book|Bs],clients=Cs}}.
 
-add_client({Id, Name}, S = #state{books=Bs, clients=Cs}, Now)->
+add_client({Id, Name}, State = #state{books=Bs, clients=Cs}=State, Now)->
     IsUnique =  fun (UserId) ->
         not lists:any(fun(#lib_user{id=Id2})-> Id2 == UserId end, Cs)
     end,
     Result = core_lib_user:create(Name, Id, Now, IsUnique),
     case Result of 
-        {fail, not_unique} -> {not_unique, S};
+        {fail, not_unique} -> {not_unique, State};
         {ok, Client} ->
-            {{ok,Client}, #state{books=Bs, clients=[Client|Cs]}}
+            {{ok,Client}, State#state{books=Bs, clients=[Client|Cs]}}
     end.
 
 %update actions
-borrow_book({BookId, ClientId}, S = #state{books=Bs, clients=Cs}, Now) ->
+borrow_book({BookId, ClientId}, State = #state{books=Bs, clients=Cs}, Now) ->
     Book = lists:keyfind(BookId, #book.id, Bs),
     Client = lists:keyfind(ClientId, #lib_user.id, Cs),
     case {Book,Client} of
-        {false,_} -> {book_not_found, S};
-        {_, false} -> {client_not_found, S};
+        {false,_} -> {book_not_found, State};
+        {_, false} -> {client_not_found, State};
         _ -> 
             CanBorrow = fun(_C) -> Client#lib_user.can_borrow end,
             Result = core_book:borrow(ClientId, CanBorrow, Now, Book),
             case Result of 
-                {fail, Reason} -> {Reason, S};
+                {fail, Reason} -> {Reason, State};
                 {ok, UpdatedBook} -> {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
-return_book({BookId, ClientId}, S = #state{books=Bs, clients=Cs}, Now)->
+return_book({BookId, ClientId}, State = #state{books=Bs, clients=Cs}, Now)->
     Book = lists:keyfind(BookId, #book.id, Bs),
     Client = lists:keyfind(ClientId, #lib_user.id, Cs),
     case {Book,Client} of
         {false,_} -> 
-            {{fail,book_not_found}, S};
+            {{fail,book_not_found}, State};
         {_, false} -> 
-            {{fail,client_not_found}, S};
+            {{fail,client_not_found}, State};
         _ -> 
             Result = core_book:return(ClientId, Now, Book),
             case Result of 
                 {fail, Reason} -> 
-                    {{fail,Reason}, S};
+                    {{fail,Reason}, State};
                 {punishment, Amount, UpdatedBook} -> 
                     {{ok,{punishment, Amount, UpdatedBook}}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}};
                 {ok, UpdatedBook} -> 
-                    {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
+                    {{ok,UpdatedBook}, State#state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
-extend_book({BookId, ClientId}, S = #state{books=Bs, clients=Cs}, Now)->
+extend_book({BookId, ClientId}, State = #state{books=Bs, clients=Cs}, Now)->
     Book = lists:keyfind(BookId, #book.id, Bs),
     Client = lists:keyfind(ClientId, #lib_user.id, Cs),
     case {Book,Client} of
         {false,_} -> 
-            {{fail,book_not_found}, S};
+            {{fail,book_not_found}, State};
         {_, false} -> 
-            {{fail,client_not_found}, S};
+            {{fail,client_not_found}, State};
         _ -> 
             Result = core_book:extend(ClientId, Now, Book),
             case Result of 
                 {fail, Reason} -> 
-                    {{fail,Reason}, S};
+                    {{fail,Reason}, State};
                 {ok, UpdatedBook} -> 
-                    {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
+                    {{ok,UpdatedBook}, State#state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
@@ -154,18 +171,7 @@ all_books(#state{books=Bs})->
 all_clients(#state{clients=Cs}) ->
     {Cs}.
 
-%handle update signal
-handle_info({update_if_clients_can_borrow}, S=#man_state{})->
-    io:format("Received signal to refresh client data~n"),
-    update_clients(S),
-    {noreply, S};
 
-handle_info({ok, update_if_clients_can_borrow_done},S)->
-    %io:format("Update of clients finished~n"),
-    {noreply,S};
-handle_info(Msg, State) ->
-    io:format("Unexpected msg: ~p~n",[Msg]),
-    {noreply, State}.
 
 update_clients(S=#man_state{now=Now}) ->
     Fn = fun (State=#state{clients=Cs,books=Bs}) ->

@@ -1,5 +1,6 @@
 -module(library_server_request_handler).
 -behaviour(gen_server).
+-define(RetryNum,20).
 
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2,console_log/2]).
 -record(state, {}).
@@ -21,7 +22,7 @@ handle_cast({OpType,Data},State) ->
    {stop, normal, State}.
 
 handle_update_job({ClientPId,UpdateFn,AfterFn}) ->
-   JobResult = update_library_server(UpdateFn),
+   JobResult = update_library_server(UpdateFn,?RetryNum),
    AfterFn(),
    console_log("update requested by ~p finished with result ~p~n",[ClientPId,JobResult]),
    gen_server:cast(ClientPId,JobResult).
@@ -42,7 +43,9 @@ handle_info(_Msg, State) ->
    io:format("Unexpected message: ~p~n",[_Msg]),
    {noreply, State}.
 
-update_library_server(UpdateFn) ->
+update_library_server(UpdateFn,0) ->
+   {failed, cant_write_to_db};
+update_library_server(UpdateFn,N) ->
    {ok, State} = gen_server:call(library_server_state,{get_state}),
    {Result,NewState} = UpdateFn(State),
    case Result of 
@@ -52,7 +55,8 @@ update_library_server(UpdateFn) ->
             ok -> 
                Result;
             failed -> 
-               update_library_server(UpdateFn)
+               console_log("write failed~n",[]),
+               update_library_server(UpdateFn,N-1)
          end;
       _ -> Result
    end.
