@@ -18,14 +18,10 @@ init(_Args) ->
         start => {
             library_server_background_timer, 
             start_link, 
-            [[#subscriber{process_name=library_server_man, period=10000,message={update_if_clients_can_borrow}}]]
+            [[#subscriber{process_name=library_server_man, period=100000,message={update_if_clients_can_borrow}}]]
         }, 
         type=>worker
     },
     RequestHandlerSupervisor = #{id => library_server_request_handlers_sup, start => {library_server_request_handlers_sup, start_link,[]}, type=>supervisor},
-
-    % CheckOutPointsSupervisor = #{id => library_checkout_points_sup, start => {library_checkout_points_sup, start_link, []},type=>supervisor},
-    % StaffPointsSupervisor = #{id => library_staff_points_sup, start => {library_staff_points_sup, start_link, []}, type=>supervisor},
-
     ChildSpecs = [ApplicationState, Application, RequestHandlerSupervisor, BackgroundTimer],
     {ok, {SupFlags, ChildSpecs}}.

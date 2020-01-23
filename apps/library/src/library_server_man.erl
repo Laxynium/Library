@@ -35,7 +35,7 @@ handle_cast({command, CommandType, From, Data}, State=#man_state{now=Now}) ->
         _ -> {reply, bad_request, State}
     end;
 %query handling
-handle_cast({'query', QueryType, From, Data},State=#man_state{})->
+handle_cast({'query', QueryType, From, _Data},State=#man_state{})->
     
     case QueryType of
         all_books -> execute_query(From,fun all_books/1, State);
@@ -54,7 +54,8 @@ handle_cast({echo,From},S) ->
     {noreply, S};
 
 %% Time changing
-handle_cast({change_current_date_time, Fn}, _S) ->
+handle_cast({From, change_current_date_time, Fn}, _S) ->
+    gen_server:cast(From, ok), 
     {noreply, #man_state{now=Fn}};
 
 handle_cast(_,S)->
@@ -84,7 +85,7 @@ execute_command_with_after(From, Fn,After, S)->
         
 execute_query(From,Fn, S)->
     execute_query_with_after(From,Fn,fun() -> ok end,S).
-execute_query_with_after(From,Fn,After, S)->
+execute_query_with_after(From,Fn,_After, S)->
     {ok, HandlerPId} = supervisor:start_child(library_server_request_handlers_sup, []),
     gen_server:cast(HandlerPId, {query,{From, Fn,fun () -> ok end}}),
     {noreply, S}.
@@ -121,7 +122,7 @@ borrow_book({BookId, ClientId}, State = #state{books=Bs, clients=Cs}, Now) ->
             Result = core_book:borrow(ClientId, CanBorrow, Now, Book),
             case Result of 
                 {fail, Reason} -> {Reason, State};
-                {ok, UpdatedBook} -> {{ok,UpdatedBook}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
+                {ok, UpdatedBook} -> {{ok,UpdatedBook}, State#state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
     end.
 
@@ -139,7 +140,7 @@ return_book({BookId, ClientId}, State = #state{books=Bs, clients=Cs}, Now)->
                 {fail, Reason} -> 
                     {{fail,Reason}, State};
                 {punishment, Amount, UpdatedBook} -> 
-                    {{ok,{punishment, Amount, UpdatedBook}}, #state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}};
+                    {{ok,{punishment, Amount, UpdatedBook}}, State#state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}};
                 {ok, UpdatedBook} -> 
                     {{ok,UpdatedBook}, State#state{books=lists:keyreplace(BookId, #book.id, Bs, UpdatedBook), clients=Cs}}
             end
