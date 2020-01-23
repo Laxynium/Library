@@ -23,7 +23,6 @@ handle_call(_Data,From,State) ->
 
 %update handling
 handle_cast({command, CommandType, From, Data}, State=#man_state{now=Now}) ->
-    io:format("command ~p from ~p~n",[CommandType,From]),
     case CommandType of 
         add_book -> execute_command(From,fun (S) -> add_book(Data,S) end, State);
         add_client -> execute_command(From,fun (S) -> add_client(Data,S, Now) end, State);
